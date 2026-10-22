@@ -1,0 +1,55 @@
+import kotlinx.coroutines.*
+import kotlinx.coroutines.supervisorScope
+
+data class TravelResults(
+    val flights: String?,
+    val hotels: String?,
+    val carRentals: String?
+)
+
+suspend fun fetchFlights(): String {
+    delay(1000)
+    return "Flight booking results"
+}
+
+suspend fun fetchHotels(): String {
+    delay(1500)
+    throw RuntimeException("Hotel API failed")
+}
+
+suspend fun fetchCarRentals(): String {
+    delay(800)
+    return "Car rental results"
+}
+
+suspend fun fetchSafely(
+    apiCall: suspend () -> String
+): String? {
+    return try {
+        apiCall()
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        println("API failed: ${e.message}")
+        null
+    }
+}
+
+suspend fun aggregateTravelResults(): TravelResults =
+    supervisorScope {
+        val flights = async { fetchSafely { fetchFlights() } }
+        val hotels = async { fetchSafely { fetchHotels() } }
+        val cars = async { fetchSafely { fetchCarRentals() } }
+
+        TravelResults(
+            flights = flights.await(),
+            hotels = hotels.await(),
+            carRentals = cars.await()
+        )
+    }
+
+
+
+fun main() = runBlocking {
+    val results = aggregateTravelResults()
+    println(results)
+}
